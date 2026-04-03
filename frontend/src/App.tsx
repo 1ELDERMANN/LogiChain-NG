@@ -13,8 +13,12 @@ declare global {
 const PICKUP_SCHEDULER_ADDRESS = '0xa0Ac8de1Ddc4b6a8bF79130E8a7B60965515707D'
 
 const PICKUP_SCHEDULER_ABI = [
-  'function requestPickup(string pickupLocation, string dropoffLocation, string details, uint256 scheduledAt) external returns (uint256)',
+  'function requestPickup(string pickupLocation, string dropoffLocation, string details, string packageSize, bool fragile, uint8 requiredVehicleType, uint256 scheduledAt) external returns (uint256)',
   'function confirmPickup(uint256 pickupId) external',
+  'function setAgentVehicleType(uint8 vehicleType) external',
+  'function getAvailablePickupsForAgent() external view returns (uint256[])',
+  'function getPendingPickupsByVehicleType(uint8 vehicleType) external view returns (uint256[])',
+  'function getPickupSummary(uint256 pickupId) external view returns (address requester, address agent, uint8 status, bool rewardMinted, uint8 agentRating, string pickupLocation, string dropoffLocation, string details, string packageSize, bool fragile, uint8 requiredVehicleType, uint256 scheduledAt)',
   'function markInTransit(uint256 pickupId) external',
   'function completePickup(uint256 pickupId) external',
   'function cancelPickup(uint256 pickupId) external',
@@ -39,7 +43,14 @@ function App() {
   const [pickupLocation, setPickupLocation] = useState<string>('')
   const [dropoffLocation, setDropoffLocation] = useState<string>('')
   const [details, setDetails] = useState<string>('')
+  const [packageSize, setPackageSize] = useState<string>('medium')
+  const [fragile, setFragile] = useState<boolean>(false)
+  const [requiredVehicleType, setRequiredVehicleType] = useState<string>('1')
   const [scheduledAt, setScheduledAt] = useState<string>('')
+  const [createdPickupId, setCreatedPickupId] = useState<string>('')
+
+  const [availablePickups, setAvailablePickups] = useState<string[]>([])
+  const [agentVehicleType, setAgentVehicleType] = useState<string>('1')
 
   // Agent Actions
   const [pickupId, setPickupId] = useState<string>('')
@@ -112,30 +123,52 @@ function App() {
   }
 
   const handleRequestPickup = async () => {
-    if (!pickupLocation || !dropoffLocation || !details || !scheduledAt) {
+    if (!schedulerContract) {
+      setStatus('❌ Wallet not connected')
+      return
+    }
+    if (!pickupLocation || !dropoffLocation || !details || !scheduledAt || !packageSize) {
       setStatus('❌ Fill in all fields')
       return
     }
 
-    // Ensure scheduled time is at least 1 hour in future
-    const scheduledTime = new Date(scheduledAt).getTime() / 1000
+    const scheduledTime = Math.floor(new Date(scheduledAt).getTime() / 1000)
     const now = Math.floor(Date.now() / 1000)
-    
+
     if (scheduledTime <= now) {
       setStatus('❌ Pickup time must be in the future')
       return
     }
 
-    await executeTx(
-      () => schedulerContract!.requestPickup(pickupLocation, dropoffLocation, details, Math.floor(scheduledTime)),
-      'Pickup requested successfully! Check the leaderboard for pending pickups.'
-    )
+    try {
+      const vehicleTypeNum = Number(requiredVehicleType)
+      const predictedId = (await schedulerContract.callStatic.requestPickup(
+        pickupLocation,
+        dropoffLocation,
+        details,
+        packageSize,
+        fragile,
+        vehicleTypeNum,
+        scheduledTime
+      )).toString()
 
-    // Clear form
-    setPickupLocation('')
-    setDropoffLocation('')
-    setDetails('')
-    setScheduledAt('')
+      await executeTx(
+        () => schedulerContract.requestPickup(pickupLocation, dropoffLocation, details, packageSize, fragile, vehicleTypeNum, scheduledTime),
+        `Pickup requested successfully! Pickup ID: #${predictedId}`
+      )
+
+      setCreatedPickupId(predictedId)
+      setPickupLocation('')
+      setDropoffLocation('')
+      setDetails('')
+      setPackageSize('medium')
+      setRequiredVehicleType('1')
+      setFragile(false)
+      setScheduledAt('')
+    } catch (error: any) {
+      const message = error.reason || error.message || 'Unknown error'
+      setStatus(`❌ ${message}`)
+    }
   }
 
   const handleConfirmPickup = async () => {
@@ -204,6 +237,39 @@ function App() {
       setAgentLeaderboard(arr2)
       
       setStatus('✓ Leaderboard loaded')
+    } catch (error: any) {
+      setStatus(`❌ ${error.message}`)
+    }
+  }
+
+  const setVehicleType = async () => {
+    if (!schedulerContract) {
+      setStatus('❌ Wallet not connected')
+      return
+    }
+
+    const typeNum = Number(agentVehicleType)
+    if (isNaN(typeNum) || typeNum < 0 || typeNum > 2) {
+      setStatus('❌ Invalid vehicle type')
+      return
+    }
+
+    await executeTx(
+      () => schedulerContract.setAgentVehicleType(typeNum),
+      `Agent vehicle type set: ${['Bike','Car','Truck'][typeNum]}`
+    )
+  }
+
+  const loadAvailablePickups = async () => {
+    if (!schedulerContract) {
+      setStatus('❌ Wallet not connected')
+      return
+    }
+    setStatus('⏳ Loading available pickups...')
+    try {
+      const ids = await schedulerContract.getAvailablePickupsForAgent()
+      setAvailablePickups(ids.map((id: any) => id.toString()))
+      setStatus('✓ Available pickups loaded')
     } catch (error: any) {
       setStatus(`❌ ${error.message}`)
     }
@@ -289,11 +355,41 @@ function App() {
                     style={inputStyle}
                   />
                   <input
-                    placeholder="📦 Package details (weight, size, fragile, etc.)"
+                    placeholder="📦 Package details (weight, content, notes)"
                     value={details}
                     onChange={(e) => setDetails(e.target.value)}
                     style={inputStyle}
                   />
+                  <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '10px' }}>
+                    <select
+                      value={packageSize}
+                      onChange={(e) => setPackageSize(e.target.value)}
+                      style={inputStyle}
+                    >
+                      <option value="small">Small</option>
+                      <option value="medium">Medium</option>
+                      <option value="large">Large</option>
+                      <option value="extra-large">Extra Large</option>
+                    </select>
+                    <select
+                      value={requiredVehicleType}
+                      onChange={(e) => setRequiredVehicleType(e.target.value)}
+                      style={inputStyle}
+                    >
+                      <option value="0">Bike</option>
+                      <option value="1">Car</option>
+                      <option value="2">Truck</option>
+                    </select>
+                  </div>
+                  <label style={{ display: 'flex', alignItems: 'center', gap: '8px', color: '#333', fontWeight: 'bold' }}>
+                    <input
+                      type="checkbox"
+                      checked={fragile}
+                      onChange={(e) => setFragile(e.target.checked)}
+                      style={{ marginRight: '8px' }}
+                    />
+                    Fragile
+                  </label>
                   <div>
                     <label style={{ display: 'block', marginBottom: '8px', fontWeight: 'bold', color: '#333' }}>Scheduled Time:</label>
                     <input
@@ -320,6 +416,11 @@ function App() {
                   >
                     {txLoading ? '⏳ Processing...' : '✓ Request Pickup'}
                   </button>
+                  {createdPickupId && (
+                    <p style={{ marginTop: '12px', color: '#4CAF50', fontWeight: 'bold' }}>
+                      🎫 Pickup ID: #{createdPickupId}
+                    </p>
+                  )}
                 </div>
               </div>
             )}
@@ -328,7 +429,44 @@ function App() {
             {activeTab === 'agent' && (
               <div style={{ background: 'white', padding: '30px', borderRadius: '15px', boxShadow: '0 10px 30px rgba(0,0,0,0.1)' }}>
                 <h2 style={{ color: '#333', marginTop: 0 }}>Agent Actions</h2>
-                
+
+                {/* Vehicle Type Settings */}
+                <div style={{ marginBottom: '20px' }}>
+                  <label style={{ display: 'block', marginBottom: '8px', fontWeight: 'bold', color: '#333' }}>Vehicle Type:</label>
+                  <select value={agentVehicleType} onChange={(e) => setAgentVehicleType(e.target.value)} style={inputStyle}>
+                    <option value="0">Bike</option>
+                    <option value="1">Car</option>
+                    <option value="2">Truck</option>
+                  </select>
+                  <button
+                    onClick={setVehicleType}
+                    disabled={txLoading}
+                    style={{ marginTop: '10px', padding: '10px 14px', background: '#6c5ce7', color: 'white', border: 'none', borderRadius: '8px', cursor: txLoading ? 'not-allowed' : 'pointer' }}
+                  >
+                    {txLoading ? '⏳' : 'Set Vehicle'}
+                  </button>
+                </div>
+
+                {/* Available Pickups */}
+                <div style={{ marginBottom: '20px' }}>
+                  <button
+                    onClick={loadAvailablePickups}
+                    disabled={txLoading}
+                    style={{ padding: '10px 14px', background: '#00b894', color: 'white', border: 'none', borderRadius: '8px', cursor: txLoading ? 'not-allowed' : 'pointer' }}
+                  >
+                    {txLoading ? '⏳' : 'Load Available Pickups'}
+                  </button>
+                  {availablePickups.length > 0 ? (
+                    <ul style={{ marginTop: '10px', paddingLeft: '20px' }}>
+                      {availablePickups.map((id) => (
+                        <li key={id}>Pickup ID: #{id}</li>
+                      ))}
+                    </ul>
+                  ) : (
+                    <p style={{ color: '#999', marginTop: '10px' }}>No available pickups for your vehicle type.</p>
+                  )}
+                </div>
+
                 {/* Pickup ID Input */}
                 <div style={{ marginBottom: '20px' }}>
                   <input

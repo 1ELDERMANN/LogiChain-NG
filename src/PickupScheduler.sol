@@ -22,12 +22,21 @@ contract PickupScheduler is Ownable {
         Canceled
     }
 
+    enum VehicleType {
+        Bike,
+        Car,
+        Truck
+    }
+
     struct Pickup {
         uint256 id;
         address requester;
         string pickupLocation;
         string dropoffLocation;
         string details;
+        string packageSize;
+        bool fragile;
+        VehicleType requiredVehicleType;
         uint256 scheduledAt;
         address agent;
         Status status;
@@ -36,9 +45,12 @@ contract PickupScheduler is Ownable {
     }
 
     uint256 public nextPickupId;
-    mapping(uint256 => Pickup) public pickups;
+    mapping(uint256 => Pickup) private pickups;
     mapping(address => uint256[]) public pickupsByUser;
     mapping(address => uint256) public rewardPoints;
+
+    mapping(address => VehicleType) public agentVehicleType;
+    mapping(address => bool) public hasVehicleType;
 
     // Agent rating system
     mapping(address => uint256) public agentTotalRating; // Sum of all ratings
@@ -51,6 +63,7 @@ contract PickupScheduler is Ownable {
     event PickupCompleted(uint256 indexed pickupId, address indexed agent);
     event PickupCanceled(uint256 indexed pickupId);
     event AgentRated(uint256 indexed pickupId, address indexed agent, uint8 rating);
+    event AgentVehicleTypeSet(address indexed agent, VehicleType vehicleType);
 
     constructor(PickupRewardToken token) Ownable(msg.sender) {
         rewardToken = token;
@@ -60,6 +73,9 @@ contract PickupScheduler is Ownable {
         string memory pickupLocation,
         string memory dropoffLocation,
         string memory details,
+        string memory packageSize,
+        bool fragile,
+        VehicleType requiredVehicleType,
         uint256 scheduledAt
     ) external returns (uint256) {
         require(bytes(pickupLocation).length > 0, "pickup required");
@@ -73,6 +89,9 @@ contract PickupScheduler is Ownable {
             pickupLocation: pickupLocation,
             dropoffLocation: dropoffLocation,
             details: details,
+            packageSize: packageSize,
+            fragile: fragile,
+            requiredVehicleType: requiredVehicleType,
             scheduledAt: scheduledAt,
             agent: address(0),
             status: Status.Pending,
@@ -96,6 +115,12 @@ contract PickupScheduler is Ownable {
         p.status = Status.Confirmed;
 
         emit PickupConfirmed(pickupId, msg.sender);
+    }
+
+    function setAgentVehicleType(VehicleType vehicleType) external {
+        agentVehicleType[msg.sender] = vehicleType;
+        hasVehicleType[msg.sender] = true;
+        emit AgentVehicleTypeSet(msg.sender, vehicleType);
     }
 
     function markInTransit(uint256 pickupId) external {
@@ -158,37 +183,91 @@ contract PickupScheduler is Ownable {
         return pickupsByUser[user];
     }
 
+    function getPendingPickupsByVehicleType(VehicleType vehicleType) public view returns (uint256[] memory) {
+        uint256 count = 0;
+        for (uint256 i = 1; i <= nextPickupId; i++) {
+            Pickup memory p = pickups[i];
+            if (p.status == Status.Pending && p.agent == address(0) && p.requiredVehicleType == vehicleType) {
+                count++;
+            }
+        }
+
+        uint256[] memory ids = new uint256[](count);
+        uint256 idx = 0;
+        for (uint256 i = 1; i <= nextPickupId; i++) {
+            Pickup memory p = pickups[i];
+            if (p.status == Status.Pending && p.agent == address(0) && p.requiredVehicleType == vehicleType) {
+                ids[idx++] = i;
+            }
+        }
+        return ids;
+    }
+
+    function getAvailablePickupsForAgent() external view returns (uint256[] memory) {
+        require(hasVehicleType[msg.sender], "agent vehicle type not set");
+        return getPendingPickupsByVehicleType(agentVehicleType[msg.sender]);
+    }
+
+    function getPickupSummary(uint256 pickupId)
+        external
+        view
+        returns (
+            address requester,
+            address agent,
+            Status status,
+            bool rewardMinted,
+            uint8 agentRating,
+            string memory pickupLocation,
+            string memory dropoffLocation,
+            string memory details,
+            string memory packageSize,
+            bool fragile,
+            VehicleType requiredVehicleType,
+            uint256 scheduledAt
+        )
+    {
+        Pickup memory p = pickups[pickupId];
+        require(p.id == pickupId, "pickup not found");
+        return (
+            p.requester,
+            p.agent,
+            p.status,
+            p.rewardMinted,
+            p.agentRating,
+            p.pickupLocation,
+            p.dropoffLocation,
+            p.details,
+            p.packageSize,
+            p.fragile,
+            p.requiredVehicleType,
+            p.scheduledAt
+        );
+    }
+
     // Leaderboard functions
     function getTopAgentsByPoints(uint256 limit) external view returns (address[] memory, uint256[] memory) {
-        // This is a simplified version - in production you'd want more efficient sorting
-        // For now, return all agents with points (frontend can sort)
         address[] memory agents = new address[](limit);
         uint256[] memory points = new uint256[](limit);
         uint256 count = 0;
 
-        // Note: This is inefficient for large datasets - consider off-chain indexing
         for (uint256 i = 1; i <= nextPickupId && count < limit; i++) {
-            Pickup memory p = pickups[i];
-            if (p.agent != address(0) && rewardPoints[p.agent] > 0) {
-                // Check if agent already in list
-                bool found = false;
+            address agentAddress = pickups[i].agent;
+            if (agentAddress != address(0) && rewardPoints[agentAddress] > 0) {
+                bool exists = false;
                 for (uint256 j = 0; j < count; j++) {
-                    if (agents[j] == p.agent) {
-                        found = true;
+                    if (agents[j] == agentAddress) {
+                        exists = true;
                         break;
                     }
                 }
-                if (!found) {
-                    agents[count] = p.agent;
-                    points[count] = rewardPoints[p.agent];
+                if (!exists) {
+                    agents[count] = agentAddress;
+                    points[count] = rewardPoints[agentAddress];
                     count++;
                 }
             }
         }
 
-        // Trim arrays to actual count
-        console.log("count:", count);
-        console.log("limit:", limit);
         address[] memory finalAgents = new address[](count);
         uint256[] memory finalPoints = new uint256[](count);
         for (uint256 i = 0; i < count; i++) {
@@ -196,9 +275,6 @@ contract PickupScheduler is Ownable {
             finalPoints[i] = points[i];
         }
 
-        console.log("About to return arrays of length:", count);
-        console.log("finalAgents.length:", finalAgents.length);
-        console.log("finalPoints.length:", finalPoints.length);
         return (finalAgents, finalPoints);
     }
 
@@ -267,57 +343,35 @@ contract PickupScheduler is Ownable {
     }
 
     function getTopRatedAgents(uint256 limit) external view returns (address[] memory, uint256[] memory) {
-        console.log("getTopRatedAgents called with limit:", limit);
-        console.log("nextPickupId:", nextPickupId);
         address[] memory agents = new address[](limit);
         uint256[] memory ratings = new uint256[](limit);
         uint256 count = 0;
 
         for (uint256 i = 1; i <= nextPickupId && count < limit; i++) {
-            Pickup memory p = pickups[i];
-            if (p.agent != address(0) && agentRatingCount[p.agent] > 0) {
-                bool found = false;
+            address agentAddress = pickups[i].agent;
+            if (agentAddress != address(0) && agentRatingCount[agentAddress] > 0) {
+                bool exists = false;
                 for (uint256 j = 0; j < count; j++) {
-                    if (agents[j] == p.agent) {
-                        found = true;
+                    if (agents[j] == agentAddress) {
+                        exists = true;
                         break;
                     }
                 }
-                if (!found) {
-                    console.log("Adding agent:", p.agent);
-                    console.log("count before:", count);
-                    agents[count] = p.agent;
-                    ratings[count] = this.getAgentAverageRating(p.agent);
+                if (!exists) {
+                    agents[count] = agentAddress;
+                    ratings[count] = this.getAgentAverageRating(agentAddress);
                     count++;
-                    console.log("count after:", count);
                 }
             }
         }
 
-        // Simple bubble sort by rating (descending)
-        for (uint256 i = 0; i < count - 1; i++) {
-            for (uint256 j = 0; j < count - i - 1; j++) {
-                if (ratings[j] < ratings[j + 1]) {
-                    // Swap
-                    (agents[j], agents[j + 1]) = (agents[j + 1], agents[j]);
-                    (ratings[j], ratings[j + 1]) = (ratings[j + 1], ratings[j]);
-                }
-            }
-        }
-
-        // Trim arrays to actual count
-        console.log("count:", count);
-        console.log("limit:", limit);
         address[] memory finalAgents = new address[](count);
-        uint256[] memory finalPoints = new uint256[](count);
+        uint256[] memory finalRatings = new uint256[](count);
         for (uint256 i = 0; i < count; i++) {
             finalAgents[i] = agents[i];
-            finalPoints[i] = ratings[i];
+            finalRatings[i] = ratings[i];
         }
 
-        console.log("About to return arrays of length:", count);
-        console.log("finalAgents.length:", finalAgents.length);
-        console.log("finalPoints.length:", finalPoints.length);
-        return (finalAgents, finalPoints);
+        return (finalAgents, finalRatings);
     }
 }
