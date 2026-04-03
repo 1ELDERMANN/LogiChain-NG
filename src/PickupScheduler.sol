@@ -14,7 +14,13 @@ contract PickupRewardToken is ERC20, Ownable {
 }
 
 contract PickupScheduler is Ownable {
-    enum Status { Pending, Confirmed, InTransit, Completed, Canceled }
+    enum Status {
+        Pending,
+        Confirmed,
+        InTransit,
+        Completed,
+        Canceled
+    }
 
     struct Pickup {
         uint256 id;
@@ -133,7 +139,7 @@ contract PickupScheduler is Ownable {
 
     function rateAgent(uint256 pickupId, uint8 rating) external {
         require(rating >= 1 && rating <= 5, "rating must be 1-5");
-        
+
         Pickup storage p = pickups[pickupId];
         require(p.id == pickupId, "pickup not found");
         require(p.status == Status.Completed, "pickup not completed");
@@ -250,7 +256,11 @@ contract PickupScheduler is Ownable {
         return agentTotalRating[agent] * 100 / agentRatingCount[agent]; // Return as percentage (e.g., 450 = 4.5 stars)
     }
 
-    function getAgentRatingStats(address agent) external view returns (uint256 totalRating, uint256 ratingCount, uint256 averageRating) {
+    function getAgentRatingStats(address agent)
+        external
+        view
+        returns (uint256 totalRating, uint256 ratingCount, uint256 averageRating)
+    {
         totalRating = agentTotalRating[agent];
         ratingCount = agentRatingCount[agent];
         averageRating = ratingCount > 0 ? (totalRating * 100) / ratingCount : 0;

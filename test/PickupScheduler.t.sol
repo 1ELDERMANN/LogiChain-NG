@@ -24,7 +24,18 @@ contract PickupSchedulerTest is Test {
         vm.prank(requester);
         uint256 pickupId = scheduler.requestPickup("A", "B", "Box", block.timestamp + 1 hours);
 
-        (uint256 id, address requester_, string memory pickupLocation, string memory dropoffLocation, string memory details, uint256 scheduledAt, address assignedAgent, PickupScheduler.Status status, bool rewardMinted, uint8 agentRating) = scheduler.pickups(pickupId);
+        (
+            uint256 id,
+            address requester_,
+            string memory pickupLocation,
+            string memory dropoffLocation,
+            string memory details,
+            uint256 scheduledAt,
+            address assignedAgent,
+            PickupScheduler.Status status,
+            bool rewardMinted,
+            uint8 agentRating
+        ) = scheduler.pickups(pickupId);
         assertEq(id, pickupId);
         assertEq(requester_, requester);
         assertEq(assignedAgent, address(0));
@@ -49,7 +60,8 @@ contract PickupSchedulerTest is Test {
         vm.prank(agent);
         scheduler.completePickup(pickupId);
 
-        (, , , , , , address assignedAgent, PickupScheduler.Status status, bool rewardMinted, uint8 agentRating) = scheduler.pickups(pickupId);
+        (,,,,,, address assignedAgent, PickupScheduler.Status status, bool rewardMinted, uint8 agentRating) =
+            scheduler.pickups(pickupId);
         assertEq(assignedAgent, agent);
         assertEq(uint256(status), uint256(PickupScheduler.Status.Completed));
         assertTrue(rewardMinted);
@@ -213,7 +225,7 @@ contract PickupSchedulerTest is Test {
         scheduler.rateAgent(pickup1, 6); // Invalid rating
 
         // Test pickup struct has rating
-        (,,,,,,address assignedAgent,,bool rewardMinted,uint8 agentRating) = scheduler.pickups(pickup1);
+        (,,,,,, address assignedAgent,, bool rewardMinted, uint8 agentRating) = scheduler.pickups(pickup1);
         assertEq(agentRating, 5);
         assertEq(assignedAgent, agent);
         assertTrue(rewardMinted);
