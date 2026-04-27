@@ -1,0 +1,1 @@
+// Formatted content of File2.sol here.

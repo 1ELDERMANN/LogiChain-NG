@@ -1,0 +1,1 @@
+// Formatted content of File3.sol here.

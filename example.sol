@@ -1,0 +1,1 @@
+pragma solidity ^0.8.0;\n\ncontract Example {\n    function test() public {\n        // Some code here\n        vm.stopBroadcast() ;\n    }\n    // Formatting issue here  }\n}
