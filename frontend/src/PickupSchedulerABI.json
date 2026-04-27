@@ -1,0 +1,542 @@
+[
+  {
+    "type": "constructor",
+    "inputs": [
+      {
+        "name": "token",
+        "type": "address",
+        "internalType": "contract PickupRewardToken"
+      }
+    ],
+    "stateMutability": "nonpayable"
+  },
+  {
+    "type": "function",
+    "name": "agentVehicleType",
+    "inputs": [
+      {
+        "name": "",
+        "type": "address",
+        "internalType": "address"
+      }
+    ],
+    "outputs": [
+      {
+        "name": "",
+        "type": "uint8",
+        "internalType": "enum PickupScheduler.VehicleType"
+      }
+    ],
+    "stateMutability": "view"
+  },
+  {
+    "type": "function",
+    "name": "cancelPickup",
+    "inputs": [
+      {
+        "name": "pickupId",
+        "type": "uint256",
+        "internalType": "uint256"
+      }
+    ],
+    "outputs": [],
+    "stateMutability": "nonpayable"
+  },
+  {
+    "type": "function",
+    "name": "completePickup",
+    "inputs": [
+      {
+        "name": "pickupId",
+        "type": "uint256",
+        "internalType": "uint256"
+      }
+    ],
+    "outputs": [],
+    "stateMutability": "nonpayable"
+  },
+  {
+    "type": "function",
+    "name": "confirmPickup",
+    "inputs": [
+      {
+        "name": "pickupId",
+        "type": "uint256",
+        "internalType": "uint256"
+      }
+    ],
+    "outputs": [],
+    "stateMutability": "nonpayable"
+  },
+  {
+    "type": "function",
+    "name": "getAgentRatingStats",
+    "inputs": [
+      {
+        "name": "agent",
+        "type": "address",
+        "internalType": "address"
+      }
+    ],
+    "outputs": [
+      {
+        "name": "totalRating",
+        "type": "uint256",
+        "internalType": "uint256"
+      },
+      {
+        "name": "ratingCount",
+        "type": "uint256",
+        "internalType": "uint256"
+      },
+      {
+        "name": "averageRating",
+        "type": "uint256",
+        "internalType": "uint256"
+      }
+    ],
+    "stateMutability": "view"
+  },
+  {
+    "type": "function",
+    "name": "getAvailablePickupsForAgent",
+    "inputs": [],
+    "outputs": [
+      {
+        "name": "",
+        "type": "uint256[]",
+        "internalType": "uint256[]"
+      }
+    ],
+    "stateMutability": "view"
+  },
+  {
+    "type": "function",
+    "name": "getCompletedPickupsByAgent",
+    "inputs": [
+      {
+        "name": "agent",
+        "type": "address",
+        "internalType": "address"
+      }
+    ],
+    "outputs": [
+      {
+        "name": "",
+        "type": "uint256",
+        "internalType": "uint256"
+      }
+    ],
+    "stateMutability": "view"
+  },
+  {
+    "type": "function",
+    "name": "getPendingPickupsByVehicleType",
+    "inputs": [
+      {
+        "name": "vehicleType",
+        "type": "uint8",
+        "internalType": "enum PickupScheduler.VehicleType"
+      }
+    ],
+    "outputs": [
+      {
+        "name": "",
+        "type": "uint256[]",
+        "internalType": "uint256[]"
+      }
+    ],
+    "stateMutability": "view"
+  },
+  {
+    "type": "function",
+    "name": "getPickupsByUser",
+    "inputs": [
+      {
+        "name": "user",
+        "type": "address",
+        "internalType": "address"
+      }
+    ],
+    "outputs": [
+      {
+        "name": "",
+        "type": "uint256[]",
+        "internalType": "uint256[]"
+      }
+    ],
+    "stateMutability": "view"
+  },
+  {
+    "type": "function",
+    "name": "getPickupSummary",
+    "inputs": [
+      {
+        "name": "pickupId",
+        "type": "uint256",
+        "internalType": "uint256"
+      }
+    ],
+    "outputs": [
+      {
+        "name": "requester",
+        "type": "address",
+        "internalType": "address"
+      },
+      {
+        "name": "agent",
+        "type": "address",
+        "internalType": "address"
+      },
+      {
+        "name": "status",
+        "type": "uint8",
+        "internalType": "enum PickupScheduler.PickupStatus"
+      },
+      {
+        "name": "rewardMinted",
+        "type": "bool",
+        "internalType": "bool"
+      },
+      {
+        "name": "agentRating",
+        "type": "uint8",
+        "internalType": "uint8"
+      },
+      {
+        "name": "pickupLocation",
+        "type": "string",
+        "internalType": "string"
+      },
+      {
+        "name": "dropoffLocation",
+        "type": "string",
+        "internalType": "string"
+      },
+      {
+        "name": "details",
+        "type": "string",
+        "internalType": "string"
+      },
+      {
+        "name": "packageSize",
+        "type": "string",
+        "internalType": "string"
+      },
+      {
+        "name": "fragile",
+        "type": "bool",
+        "internalType": "bool"
+      },
+      {
+        "name": "requiredVehicleType",
+        "type": "uint8",
+        "internalType": "enum PickupScheduler.VehicleType"
+      },
+      {
+        "name": "scheduledAt",
+        "type": "uint256",
+        "internalType": "uint256"
+      }
+    ],
+    "stateMutability": "view"
+  },
+  {
+    "type": "function",
+    "name": "getTopAgentsByPoints",
+    "inputs": [
+      {
+        "name": "limit",
+        "type": "uint256",
+        "internalType": "uint256"
+      }
+    ],
+    "outputs": [
+      {
+        "name": "",
+        "type": "address[]",
+        "internalType": "address[]"
+      },
+      {
+        "name": "",
+        "type": "uint256[]",
+        "internalType": "uint256[]"
+      }
+    ],
+    "stateMutability": "view"
+  },
+  {
+    "type": "function",
+    "name": "getTopRatedAgents",
+    "inputs": [
+      {
+        "name": "limit",
+        "type": "uint256",
+        "internalType": "uint256"
+      }
+    ],
+    "outputs": [
+      {
+        "name": "",
+        "type": "address[]",
+        "internalType": "address[]"
+      },
+      {
+        "name": "",
+        "type": "uint256[]",
+        "internalType": "uint256[]"
+      }
+    ],
+    "stateMutability": "view"
+  },
+  {
+    "type": "function",
+    "name": "getTotalRewardPoints",
+    "inputs": [
+      {
+        "name": "user",
+        "type": "address",
+        "internalType": "address"
+      }
+    ],
+    "outputs": [
+      {
+        "name": "",
+        "type": "uint256",
+        "internalType": "uint256"
+      }
+    ],
+    "stateMutability": "view"
+  },
+  {
+    "type": "function",
+    "name": "markInTransit",
+    "inputs": [
+      {
+        "name": "pickupId",
+        "type": "uint256",
+        "internalType": "uint256"
+      }
+    ],
+    "outputs": [],
+    "stateMutability": "nonpayable"
+  },
+  {
+    "type": "function",
+    "name": "rateAgent",
+    "inputs": [
+      {
+        "name": "pickupId",
+        "type": "uint256",
+        "internalType": "uint256"
+      },
+      {
+        "name": "rating",
+        "type": "uint8",
+        "internalType": "uint8"
+      }
+    ],
+    "outputs": [],
+    "stateMutability": "nonpayable"
+  },
+  {
+    "type": "function",
+    "name": "requestPickup",
+    "inputs": [
+      {
+        "name": "pickupLocation",
+        "type": "string",
+        "internalType": "string"
+      },
+      {
+        "name": "dropoffLocation",
+        "type": "string",
+        "internalType": "string"
+      },
+      {
+        "name": "details",
+        "type": "string",
+        "internalType": "string"
+      },
+      {
+        "name": "packageSize",
+        "type": "string",
+        "internalType": "string"
+      },
+      {
+        "name": "fragile",
+        "type": "bool",
+        "internalType": "bool"
+      },
+      {
+        "name": "requiredVehicleType",
+        "type": "uint8",
+        "internalType": "enum PickupScheduler.VehicleType"
+      },
+      {
+        "name": "scheduledAt",
+        "type": "uint256",
+        "internalType": "uint256"
+      }
+    ],
+    "outputs": [
+      {
+        "name": "",
+        "type": "uint256",
+        "internalType": "uint256"
+      }
+    ],
+    "stateMutability": "nonpayable"
+  },
+  {
+    "type": "function",
+    "name": "setAgentVehicleType",
+    "inputs": [
+      {
+        "name": "vehicleType",
+        "type": "uint8",
+        "internalType": "enum PickupScheduler.VehicleType"
+      }
+    ],
+    "outputs": [],
+    "stateMutability": "nonpayable"
+  },
+  {
+    "type": "event",
+    "name": "AgentConfirmed",
+    "inputs": [
+      {
+        "name": "pickupId",
+        "type": "uint256",
+        "indexed": true,
+        "internalType": "uint256"
+      },
+      {
+        "name": "agent",
+        "type": "address",
+        "indexed": true,
+        "internalType": "address"
+      }
+    ]
+  },
+  {
+    "type": "event",
+    "name": "AgentRated",
+    "inputs": [
+      {
+        "name": "pickupId",
+        "type": "uint256",
+        "indexed": true,
+        "internalType": "uint256"
+      },
+      {
+        "name": "agent",
+        "type": "address",
+        "indexed": true,
+        "internalType": "address"
+      },
+      {
+        "name": "rating",
+        "type": "uint8",
+        "indexed": false,
+        "internalType": "uint8"
+      }
+    ]
+  },
+  {
+    "type": "event",
+    "name": "AgentVehicleTypeSet",
+    "inputs": [
+      {
+        "name": "agent",
+        "type": "address",
+        "indexed": true,
+        "internalType": "address"
+      },
+      {
+        "name": "vehicleType",
+        "type": "uint8",
+        "indexed": false,
+        "internalType": "enum PickupScheduler.VehicleType"
+      }
+    ]
+  },
+  {
+    "type": "event",
+    "name": "PickupCancelled",
+    "inputs": [
+      {
+        "name": "pickupId",
+        "type": "uint256",
+        "indexed": true,
+        "internalType": "uint256"
+      }
+    ]
+  },
+  {
+    "type": "event",
+    "name": "PickupCompleted",
+    "inputs": [
+      {
+        "name": "pickupId",
+        "type": "uint256",
+        "indexed": true,
+        "internalType": "uint256"
+      },
+      {
+        "name": "requester",
+        "type": "address",
+        "indexed": true,
+        "internalType": "address"
+      },
+      {
+        "name": "agent",
+        "type": "address",
+        "indexed": true,
+        "internalType": "address"
+      }
+    ]
+  },
+  {
+    "type": "event",
+    "name": "PickupRequested",
+    "inputs": [
+      {
+        "name": "pickupId",
+        "type": "uint256",
+        "indexed": true,
+        "internalType": "uint256"
+      },
+      {
+        "name": "requester",
+        "type": "address",
+        "indexed": true,
+        "internalType": "address"
+      },
+      {
+        "name": "pickupLocation",
+        "type": "string",
+        "indexed": false,
+        "internalType": "string"
+      }
+    ]
+  },
+  {
+    "type": "event",
+    "name": "PickupStatusChanged",
+    "inputs": [
+      {
+        "name": "pickupId",
+        "type": "uint256",
+        "indexed": true,
+        "internalType": "uint256"
+      },
+      {
+        "name": "newStatus",
+        "type": "uint8",
+        "indexed": false,
+        "internalType": "enum PickupScheduler.PickupStatus"
+      }
+    ]
+  }
+]

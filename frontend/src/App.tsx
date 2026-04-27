@@ -2,6 +2,7 @@
 
 import { useCallback, useEffect, useState } from 'react'
 import { BrowserProvider, Contract, type TransactionResponse } from 'ethers'
+import PICKUP_SCHEDULER_ABI from './PickupSchedulerABI.json'
 import './App.css'
 
 declare global {
@@ -11,26 +12,6 @@ declare global {
 }
 
 const PICKUP_SCHEDULER_ADDRESS = '0xa0Ac8de1Ddc4b6a8bF79130E8a7B60965515707D'
-
-const PICKUP_SCHEDULER_ABI = [
-  'function requestPickup(string pickupLocation, string dropoffLocation, string details, string packageSize, bool fragile, uint8 requiredVehicleType, uint256 scheduledAt) external returns (uint256)',
-  'function confirmPickup(uint256 pickupId) external',
-  'function setAgentVehicleType(uint8 vehicleType) external',
-  'function getAvailablePickupsForAgent() external view returns (uint256[])',
-  'function getPendingPickupsByVehicleType(uint8 vehicleType) external view returns (uint256[])',
-  'function getPickupSummary(uint256 pickupId) external view returns (address requester, address agent, uint8 status, bool rewardMinted, uint8 agentRating, string pickupLocation, string dropoffLocation, string details, string packageSize, bool fragile, uint8 requiredVehicleType, uint256 scheduledAt)',
-  'function markInTransit(uint256 pickupId) external',
-  'function completePickup(uint256 pickupId) external',
-  'function cancelPickup(uint256 pickupId) external',
-  'function rateAgent(uint256 pickupId, uint8 rating) external',
-  'function getPickupsByUser(address user) external view returns (uint256[])',
-  'function getTotalRewardPoints(address user) external view returns (uint256)',
-  'function getTopAgentsByPoints(uint256 limit) external view returns (address[], uint256[])',
-  'function getTopRatedAgents(uint256 limit) external view returns (address[], uint256[])',
-  'function getAgentRatingStats(address agent) external view returns (uint256 totalRating, uint256 ratingCount, uint256 averageRating)',
-  'function getCompletedPickupsByAgent(address agent) external view returns (uint256)',
-  'function pickups(uint256) external view returns (uint256 id, address requester, string pickupLocation, string dropoffLocation, string details, uint256 scheduledAt, address agent, uint8 status, bool rewardMinted, uint8 agentRating)',
- ]
 
 function App() {
   const [walletAddress, setWalletAddress] = useState<string>('')
@@ -64,22 +45,46 @@ function App() {
   const connectWallet = useCallback(async () => {
     if (!window.ethereum) {
       setStatus('Please install MetaMask.')
+      console.error('MetaMask not found')
       return
     }
-    const web3Provider = new BrowserProvider(window.ethereum)
-    await web3Provider.send('eth_requestAccounts', [])
-    const signer = await web3Provider.getSigner()
-    const address = await signer.getAddress()
+    try {
+      console.log('Starting wallet connection...')
+      const web3Provider = new BrowserProvider(window.ethereum)
+      console.log('Created provider:', web3Provider)
+      
+      await web3Provider.send('eth_requestAccounts', [])
+      console.log('Requested accounts')
+      
+      const signer = await web3Provider.getSigner()
+      console.log('Got signer:', signer)
+      
+      const address = await signer.getAddress()
+      console.log('Got address:', address)
 
-    const contract = new Contract(PICKUP_SCHEDULER_ADDRESS, PICKUP_SCHEDULER_ABI, signer)
+      console.log('Creating contract with ABI:', PICKUP_SCHEDULER_ABI)
+      console.log('Contract address:', PICKUP_SCHEDULER_ADDRESS)
+      
+      const contract = new Contract(PICKUP_SCHEDULER_ADDRESS, PICKUP_SCHEDULER_ABI, signer)
+      console.log('Contract created:', contract)
+      console.log('Contract methods:', Object.keys(contract))
 
-    setWalletAddress(address)
-    setSchedulerContract(contract)
-    setStatus('✓ Wallet connected successfully!')
-    
-    // Load user points
-    const userPoints = await contract.getTotalRewardPoints(address)
-    setPoints(userPoints.toString())
+      setWalletAddress(address)
+      setSchedulerContract(contract)
+      setStatus('✓ Wallet connected successfully!')
+      
+      // Load user points
+      try {
+        const userPoints = await contract.getTotalRewardPoints(address)
+        console.log('User points:', userPoints.toString())
+        setPoints(userPoints.toString())
+      } catch (pointsError: any) {
+        console.error('Error loading points:', pointsError)
+      }
+    } catch (error: any) {
+      console.error('Connection error:', error)
+      setStatus(`❌ Connection failed: ${error.message}`)
+    }
   }, [])
 
   useEffect(() => {
@@ -124,7 +129,8 @@ function App() {
 
   const handleRequestPickup = async () => {
     if (!schedulerContract) {
-      setStatus('❌ Wallet not connected')
+      setStatus('❌ Contract not initialized. Please reconnect wallet.')
+      console.log('schedulerContract is null')
       return
     }
     if (!pickupLocation || !dropoffLocation || !details || !scheduledAt || !packageSize) {
@@ -142,6 +148,16 @@ function App() {
 
     try {
       const vehicleTypeNum = Number(requiredVehicleType)
+      console.log('Calling requestPickup with:', {
+        pickupLocation,
+        dropoffLocation,
+        details,
+        packageSize,
+        fragile,
+        vehicleTypeNum,
+        scheduledTime
+      })
+      
       const predictedId = (await schedulerContract.callStatic.requestPickup(
         pickupLocation,
         dropoffLocation,
@@ -167,6 +183,7 @@ function App() {
       setScheduledAt('')
     } catch (error: any) {
       const message = error.reason || error.message || 'Unknown error'
+      console.error('Error:', error)
       setStatus(`❌ ${message}`)
     }
   }
