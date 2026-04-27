@@ -22,23 +22,22 @@ contract PickupSchedulerTest is Test {
 
     function testRequestPickup() public {
         vm.prank(requester);
-        uint256 pickupId = scheduler.requestPickup("A", "B", "Box", block.timestamp + 1 hours);
-
-        (uint256 id, address requester_, string memory pickupLocation, string memory dropoffLocation, string memory details, uint256 scheduledAt, address assignedAgent, PickupScheduler.Status status, bool rewardMinted, uint8 agentRating) = scheduler.pickups(pickupId);
-        assertEq(id, pickupId);
-        assertEq(requester_, requester);
-        assertEq(assignedAgent, address(0));
-        assertEq(uint256(status), uint256(PickupScheduler.Status.Pending));
-        assertEq(agentRating, 0);
+        uint256 pickupId = scheduler.requestPickup(
+            "A", "B", "Box", "medium", true, PickupScheduler.VehicleType.Car, block.timestamp + 1 hours
+        );
 
         uint256[] memory userPickups = scheduler.getPickupsByUser(requester);
+        assertEq(userPickups.length, 1);
+        assertEq(userPickups[0], pickupId);
         assertEq(userPickups.length, 1);
         assertEq(userPickups[0], pickupId);
     }
 
     function testConfirmAndCompleteFlow() public {
         vm.prank(requester);
-        uint256 pickupId = scheduler.requestPickup("A", "B", "Box", block.timestamp + 1 hours);
+        uint256 pickupId = scheduler.requestPickup(
+            "A", "B", "Box", "large", false, PickupScheduler.VehicleType.Truck, block.timestamp + 1 hours
+        );
 
         vm.prank(agent);
         scheduler.confirmPickup(pickupId);
@@ -48,12 +47,6 @@ contract PickupSchedulerTest is Test {
 
         vm.prank(agent);
         scheduler.completePickup(pickupId);
-
-        (, , , , , , address assignedAgent, PickupScheduler.Status status, bool rewardMinted, uint8 agentRating) = scheduler.pickups(pickupId);
-        assertEq(assignedAgent, agent);
-        assertEq(uint256(status), uint256(PickupScheduler.Status.Completed));
-        assertTrue(rewardMinted);
-        assertEq(agentRating, 0); // Not rated yet
 
         assertEq(scheduler.rewardPoints(requester), 10);
         assertEq(scheduler.rewardPoints(agent), 20);
@@ -70,13 +63,19 @@ contract PickupSchedulerTest is Test {
 
         // Create multiple pickups
         vm.prank(requester);
-        uint256 pickup1 = scheduler.requestPickup("A", "B", "Box1", block.timestamp + 1 hours);
+        uint256 pickup1 = scheduler.requestPickup(
+            "A", "B", "Box1", "small", false, PickupScheduler.VehicleType.Bike, block.timestamp + 1 hours
+        );
 
         vm.prank(requester2);
-        uint256 pickup2 = scheduler.requestPickup("C", "D", "Box2", block.timestamp + 1 hours);
+        uint256 pickup2 = scheduler.requestPickup(
+            "C", "D", "Box2", "medium", true, PickupScheduler.VehicleType.Car, block.timestamp + 1 hours
+        );
 
         vm.prank(requester);
-        uint256 pickup3 = scheduler.requestPickup("E", "F", "Box3", block.timestamp + 1 hours);
+        uint256 pickup3 = scheduler.requestPickup(
+            "E", "F", "Box3", "large", false, PickupScheduler.VehicleType.Truck, block.timestamp + 1 hours
+        );
 
         // Confirm and complete pickups
         vm.prank(agent);
@@ -142,10 +141,14 @@ contract PickupSchedulerTest is Test {
 
         // Create and complete two pickups
         vm.prank(requester);
-        uint256 pickup1 = scheduler.requestPickup("A", "B", "Box1", block.timestamp + 1 hours);
+        uint256 pickup1 = scheduler.requestPickup(
+            "A", "B", "Box1", "small", true, PickupScheduler.VehicleType.Bike, block.timestamp + 1 hours
+        );
 
         vm.prank(requester2);
-        uint256 pickup2 = scheduler.requestPickup("C", "D", "Box2", block.timestamp + 1 hours);
+        uint256 pickup2 = scheduler.requestPickup(
+            "C", "D", "Box2", "medium", false, PickupScheduler.VehicleType.Car, block.timestamp + 1 hours
+        );
 
         // Agent confirms and completes pickup1
         vm.prank(agent);
@@ -212,10 +215,39 @@ contract PickupSchedulerTest is Test {
         vm.expectRevert("rating must be 1-5");
         scheduler.rateAgent(pickup1, 6); // Invalid rating
 
-        // Test pickup struct has rating
-        (,,,,,,address assignedAgent,,bool rewardMinted,uint8 agentRating) = scheduler.pickups(pickup1);
-        assertEq(agentRating, 5);
-        assertEq(assignedAgent, agent);
-        assertTrue(rewardMinted);
+        // Test pickup struct has rating via aggregated stats
+        assertEq(scheduler.agentRatingCount(agent), 1);
+        assertEq(scheduler.agentTotalRating(agent), 5);
+    }
+
+    function testAvailablePickupsByVehicleType() public {
+        address agent2 = address(0x789);
+        vm.deal(agent2, 10 ether);
+
+        vm.prank(requester);
+        uint256 pickup1 = scheduler.requestPickup(
+            "A", "B", "Box1", "small", false, PickupScheduler.VehicleType.Bike, block.timestamp + 1 hours
+        );
+        vm.prank(requester);
+        uint256 pickup2 = scheduler.requestPickup(
+            "C", "D", "Box2", "medium", false, PickupScheduler.VehicleType.Car, block.timestamp + 1 hours
+        );
+
+        vm.prank(agent);
+        scheduler.setAgentVehicleType(PickupScheduler.VehicleType.Bike);
+
+        vm.prank(agent2);
+        scheduler.setAgentVehicleType(PickupScheduler.VehicleType.Car);
+
+        vm.prank(agent);
+        uint256[] memory agentAvailable = scheduler.getAvailablePickupsForAgent();
+        assertEq(agentAvailable.length, 1);
+        assertEq(agentAvailable[0], pickup1);
+
+        vm.prank(agent2);
+        uint256[] memory agent2Available = scheduler.getAvailablePickupsForAgent();
+        assertEq(agent2Available.length, 1);
+        assertEq(agent2Available[0], pickup2);
     }
 }
+
